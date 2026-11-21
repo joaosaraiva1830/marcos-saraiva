@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://assessoriasalesfuel-site-whatsapp.vdjdww.easypanel.host/sitemap.xml
