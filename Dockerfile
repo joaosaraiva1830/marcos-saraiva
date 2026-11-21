@@ -1,10 +1,14 @@
-# Site estático servido pelo nginx (porta 80)
-FROM nginx:1.27-alpine
+# Site + API de Conversões da Meta (Node.js, sem dependências externas)
+FROM node:22-alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
+ENV NODE_ENV=production \
+    PORT=80
 
+COPY server.js ./
 COPY index.html robots.txt sitemap.xml favicon.ico favicon.png \
      hero-bg.jpg hero-bg-mobile.jpg og-image.jpg \
-     /usr/share/nginx/html/
+     ./public/
 
 EXPOSE 80
+CMD ["node", "server.js"]

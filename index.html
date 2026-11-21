@@ -35,6 +35,44 @@
     // Modo teste: abra o site com ?pixel_debug=1 no fim do endereço.
     // Nada é enviado à Meta; os eventos aparecem só no console do navegador.
     var PIXEL_DEBUG = /[?&]pixel_debug=1/.test(location.search);
+
+    // ID único de cada evento: o mesmo vai pelo Pixel e pela API de Conversões (a Meta junta os dois)
+    window.eventId = function(name) {
+      return name + '.' + Date.now() + '.' + Math.random().toString(36).slice(2, 10);
+    };
+    function readCookie(name) {
+      var m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+      return m ? decodeURIComponent(m[1]) : undefined;
+    }
+    function fbcValue() {
+      var c = readCookie('_fbc');
+      if (c) return c;
+      var m = location.search.match(/[?&]fbclid=([^&]+)/);
+      return m ? 'fb.1.' + Date.now() + '.' + decodeURIComponent(m[1]) : undefined;
+    }
+    // Envia o evento para o nosso servidor, que repassa à Meta (API de Conversões)
+    window.sendCapi = function(name, id, params) {
+      var body = {
+        event_name: name,
+        event_id: id,
+        event_source_url: location.href,
+        custom_data: params || {},
+        fbp: readCookie('_fbp'),
+        fbc: fbcValue()
+      };
+      if (PIXEL_DEBUG) {
+        (window.__capiLog = window.__capiLog || []).push(body);
+        console.log('[API teste]', name, id);
+        return;
+      }
+      try {
+        var json = JSON.stringify(body);
+        if (navigator.sendBeacon && navigator.sendBeacon('/api/evento', new Blob([json], { type: 'application/json' }))) return;
+        fetch('/api/evento', { method: 'POST', body: json, headers: { 'Content-Type': 'application/json' }, keepalive: true });
+      } catch (e) {}
+    };
+
+    var pageViewId = eventId('PageView');
     if (PIXEL_DEBUG) {
       window.__pixelLog = [];
       window.fbq = function() {
@@ -43,7 +81,7 @@
         console.log('[Pixel teste]', args[0], args[1], args[2] || '', args[3] || '');
       };
       fbq('init', PIXEL_ID);
-      fbq('track', 'PageView');
+      fbq('track', 'PageView', {}, { eventID: pageViewId });
     } else if (PIXEL_ID) {
     !function(f,b,e,v,n,t,s)
     {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -54,8 +92,17 @@
     s.parentNode.insertBefore(t,s)}(window, document,'script',
     'https://connect.facebook.net/en_US/fbevents.js');
     fbq('init', PIXEL_ID);
-    fbq('track', 'PageView');
+    fbq('track', 'PageView', {}, { eventID: pageViewId });
     }
+
+    // PageView pela API: espera o Pixel criar o cookie _fbp (até 3s) para a Meta reconhecer o visitante
+    (function() {
+      var tries = 0;
+      (function wait() {
+        if (readCookie('_fbp') || tries++ >= 15 || PIXEL_DEBUG) return sendCapi('PageView', pageViewId);
+        setTimeout(wait, 200);
+      })();
+    })();
   </script>
   <!-- End Meta Pixel Code -->
 
@@ -970,7 +1017,7 @@
     <div class="container">
       <p>© <span id="year">2026</span> Pai Marcos das Sete Encruzilhadas. Todos os direitos reservados.</p>
       <p>Os trabalhos espirituais são práticas de fé. Os resultados variam de pessoa para pessoa e não substituem acompanhamento médico, psicológico, jurídico ou financeiro.</p>
-      <p>Privacidade: este site não coleta dados por formulário. O atendimento acontece pelo WhatsApp, e podemos usar cookies de medição (Meta Pixel) para entender o acesso às páginas.</p>
+      <p>Privacidade: este site não coleta dados por formulário. O atendimento acontece pelo WhatsApp, e usamos cookies de medição e a API de Conversões da Meta (dados técnicos de acesso, como navegador e endereço IP) para medir os anúncios. Não coletamos nome, telefone ou e-mail por este site.</p>
     </div>
   </footer>
 
@@ -984,15 +1031,16 @@
          - Rolagem (25/50/75/90%)  quanto da página foi lida
          - TempoNaPagina (30/60/120s) só conta com a aba aberta na frente
          - AbriuFAQ .............. qual pergunta foi aberta
-         Cada evento leva um eventID único, pronto para a API de Conversões no futuro. */
+         PageView, ViewContent, Lead e Contact vão também pela API de Conversões (servidor),
+         com o mesmo eventID do Pixel para a Meta não contar duas vezes. */
       var startTime = Date.now();
 
-      function eventId(name) {
-        return name + '.' + Date.now() + '.' + Math.random().toString(36).slice(2, 10);
-      }
       function track(name, params, custom) {
-        if (typeof window.fbq !== 'function') return;
-        fbq(custom ? 'trackCustom' : 'track', name, params || {}, { eventID: eventId(name) });
+        var id = eventId(name);
+        if (typeof window.fbq === 'function') {
+          fbq(custom ? 'trackCustom' : 'track', name, params || {}, { eventID: id });
+        }
+        if (!custom) sendCapi(name, id, params);
       }
       function scrollPercent() {
         var doc = document.documentElement;
