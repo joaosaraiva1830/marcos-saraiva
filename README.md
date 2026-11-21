@@ -17,4 +17,4 @@ Site estático (HTML/CSS/JS puro, sem build), feito para celular. Todo contato v
 ## Publicar (Easypanel)
 - Fonte: GitHub `joaosaraiva1830/marcos-saraiva`, ramo `main`, caminho `/`
 - Build: **Dockerfile** (nginx, porta **80**)
-- `nginx.conf`: compressão gzip, HTML sem cache (mudanças aparecem na hora), imagens com cache de 30 dias. Se mudar o domínio, atualize o endereço em `index.html` (canonical / og), `robots.txt` e `sitemap.xml`.
+- `nginx.conf`: compressão gzip, HTML sem cache (mudanças aparecem na hora), imagens com cache de 30 dias. Domínio: https://paimarcosdasseteencruzilhadas.online (www redireciona para ele). Se mudar o domínio, atualize o endereço em `index.html` (canonical / og), `robots.txt` e `sitemap.xml`.
